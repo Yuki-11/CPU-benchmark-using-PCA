@@ -1,14 +1,14 @@
-# TTI (2020/06/30)  Yuki. Kondo
+# TTI Numerical Calculation course report (2020/06/30)  18037 Yuki. Kondo
 # -*- coding: utf-8 -*-
 
 """
 =================================================================
 PCA解析プログラム(CPUスペック解析用)
-スクリプト実行 
+スクリプト実行 （レポート小問3の回答を出力)
 PCAオブジェクトを生成し，mainメソッドの実行により，各解析メソッドが実行される．
 
 (統計学の前提条件)：不偏分散を基準とする
-(注意)グラフにはメイリオを使用
+(注意)グラフにはメイリオを使用しており，Linux,Unix環境ではインストールされていない可能性がある．
 =================================================================
 """
 import pandas as pd
@@ -123,28 +123,48 @@ class Graph:
         plt.close()  # 大量画像データ処理によるメモリ不足エラーを避ける．
         self.count += 1  # 保存用ナンバーの更新
 
-    # 折れ線グラフ作成・保存メソッド
-    def lineGraphDraw(self, x, y, graphLabels=('lineGraph', "x", "y")):  # x:プロットxデータ,y:プロットyデータ,
+    # パレート図作成・保存メソッド
+    def paretoChartDraw(self, y1, y2, graphLabels=('lineGraph', "x", "y1", "y2")):  # x:プロットxデータ,y:プロットyデータ,
         # graphLabels:グラフタイトル,x軸タイトル、y軸タイトル
-
+        data_num = len(y1)
         # ---グラフ設定----
-        fig, ax = plt.subplots(1, 1)  # 拡張性確保のためにsubplotで生成．デフォルト値 8*6インチで設定
-        plt.subplots_adjust(bottom=0.15)  # グラフの下部空白を拡張
-        # グラフの軸の最大・最小値を設定
-        ax.set_xlim((0, x[-1]))
-        ax.set_ylim((0, 100))
+        fig, ax1 = plt.subplots(figsize=(6,4))  # 拡張性確保のためにsubplotで生成．デフォルト値 8*6インチで設定
+        fig.subplots_adjust(right=0.85)
+        accum_to_plot = [0] + list(y2)
+        colorcodes = ['#C4F092', '#EEFA98', '#E3DE96', '#FAEA98', '#F0D792' ,'#F4D002' ,'#FFFF51',
+                    '#80C686' ,'#509458' ,'#1F662E' ,'#1168AD' ,'#003E7D' ,'#001950']
+        percent_labels = [str(i) + "%" for i in np.arange(0, 100+1, 10)]
+
+        ax1.bar(range(1, data_num + 1), y1, align="edge", width=-1, edgecolor='k', color=colorcodes[:data_num+1])
+
+        ax1.set_xticks([0.5 + i for i in range(data_num)], minor=True)
+        ax1.set_xticklabels([i+1 for i in range(data_num)], minor=True)
+        ax1.tick_params(axis="x", which="major", direction="in")
+        ax1.set_ylim([0, sum(y1)])
+        ax1.set_xlabel(graphLabels[1])
+        ax1.set_ylabel(graphLabels[2])
+
+        ax2 = ax1.twinx()
+        ax2.set_xticks(range(data_num+1))
+        ax2.plot(range(data_num+1), accum_to_plot, color="red", marker="o")
+        ax2.set_xticklabels([])
+        ax2.set_xlim([0,data_num])
+        ax2.set_ylim([0, 100])
+        ax2.set_yticks(np.arange(0, 100+1, 10))
+        ax2.set_yticklabels(percent_labels)
+        ax2.set_ylabel(graphLabels[3])
+        # ax2.grid(True)
+
+        x = range(data_num)
+        for i, j in zip(x, accum_to_plot):
+            plt.annotate(f"{j:.2f}", xy=(i+0.1, j-5),color = "red")
+        for i, j in zip(x, y1):
+            plt.annotate(f"{j:.2f}", xy=(i+0.1, 9*j+1),color = "black")
 
         # ---グラフ作成---
-        ax.plot(x, y)  # グラフにデータをプロット
-        ax.set_title(graphLabels[0], y=-.2)  # グラフタイトルを設置
-        ax.set_xlabel(graphLabels[1], labelpad=5)  # x軸ラベルを設置
-        ax.set_ylabel(graphLabels[2], labelpad=0)  # y軸ラベルを設置
-        plt.grid()  # グリッドを追加
-        plt.xticks(np.arange(0, x[-1] + 1, 1))  # 目盛りを主成分数だけ設定
         fig.savefig(f"{self.saveDirectory}lineGraph{self.count}.png")  # 画像の保存
         plt.close()  # メモリ不足エラーを避ける．
         # plt.show()
-        self.count += 1  # 保存用ナンバーの更新
 
     # 散布図カラーマップ設定メソッド
     def scatterPlotColorSelect(self, dataLabels):
@@ -198,16 +218,16 @@ class PCA(SVD, Graph):
 
     # (累積)寄与率計算・出力メソッド
     def contributionRatioFunction(self):
-        contributionRatio = self.Wvector ** 2 / (self.A.shape[0]-1)  # Wベクトルの各要素を二乗し、その値をAの行数すなわちサンプル数-1で割ることで寄与率を
+        self.contributionRatio = self.Wvector ** 2 / (self.A.shape[0]-1)  # Wベクトルの各要素を二乗し、その値をAの行数すなわちサンプル数-1で割ることで寄与率を
         # 1次元配列として取得
-        self.cumulativeContributionRatio = np.cumsum(contributionRatio)  # 上記の配列を順次累積していった累積寄与率の1次元配列を取得
+        self.cumulativeContributionRatio = np.cumsum(self.contributionRatio)  # 上記の配列を順次累積していった累積寄与率の1次元配列を取得
         # ---寄与率、累積寄与率の出力---
         for i in range(self.numPrincipalComponents):  # 主成分数だけループで処理
             divPrint(f"**第{i + 1}主成分**",
-                     f"寄与率: {contributionRatio[i]:.6f}",
-                     f"寄与率(%換算): {contributionRatio[i] / np.sum(contributionRatio) * 100:.6f} %",
+                     f"寄与率: {self.contributionRatio[i]:.6f}",
+                     f"寄与率(%換算): {self.contributionRatio[i] / np.sum(self.contributionRatio) * 100:.6f} %",
                      f"累積寄与率: {self.cumulativeContributionRatio[i]:.6f}",
-                     f"累積寄与率(%換算): {self.cumulativeContributionRatio[i] / np.sum(contributionRatio) * 100:.6f} %",
+                     f"累積寄与率(%換算): {self.cumulativeContributionRatio[i] / np.sum(self.contributionRatio) * 100:.6f} %",
                      )
 
     # 主成分得点計算・出力メソッド
@@ -234,11 +254,10 @@ class PCA(SVD, Graph):
 
     # 主成分得点ー累積寄与率　棒グラフ出力メソッド
     def graphCumulativeContributionRatio(self):
-        graphLabels = ("主成分数と累積寄与率の関係", "主成分数", "累積寄与率[%]")  # 左からグラフタイトル, x軸ラベル, y軸ラベル
-        x = np.arange(self.numPrincipalComponents + 1)  # 0と主成分の番号で配列生成
-        y = np.insert(self.cumulativeContributionRatio, 0, 0) / (self.cumulativeContributionRatio[-1]) * 100  #
-        # 因子負insert荷率を%換算した1次元配列。原点生成のために0番目に0を追加。
-        self.lineGraphDraw(x, y, graphLabels=graphLabels)  # GraphクラスのlineGraphDrawメソッドを実行
+        graphLabels = ("主成分数と累積寄与率の関係", "主成分", "寄与率", "累積寄与率[%]")  # 左からグラフタイトル, x軸ラベル, y軸ラベル
+        y1 = self.contributionRatio  # 因子負荷率の1次元配列。
+        y2 = self.cumulativeContributionRatio / self.cumulativeContributionRatio[-1] * 100
+        self.paretoChartDraw(y1, y2, graphLabels=graphLabels)  # GraphクラスのlineGraphDrawメソッドを実行
 
     # 因子負荷量 散布図出力メソッド
     def sFactorLoading(self):
